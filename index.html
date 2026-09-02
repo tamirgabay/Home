@@ -6,6 +6,8 @@
 <title>המשימות שלי</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
   :root{
     --ink:#241E42;
@@ -222,16 +224,82 @@
   }
   function uid(){ return 'id'+Math.random().toString(36).slice(2,10); }
 
-  const STORAGE_PREFIX = 'kids-tasks:';
+  // ====== FIREBASE CONFIG ======
+  // 1. Go to https://console.firebase.google.com, create a project (free)
+  // 2. Build -> Realtime Database -> Create Database -> start in test mode
+  // 3. Project settings (gear icon) -> General -> "Your apps" -> Web (</>) -> register app
+  // 4. Copy the config object it shows you and paste the values below
+  // Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyC8hjnkd9z3NXP1saJsumbn4uM4HbjwOgU",
+  authDomain: "plans-14b6c.firebaseapp.com",
+  databaseURL: "https://plans-14b6c-default-rtdb.firebaseio.com",
+  projectId: "plans-14b6c",
+  storageBucket: "plans-14b6c.firebasestorage.app",
+  messagingSenderId: "594919600921",
+  appId: "1:594919600921:web:dd9656cdca31c0752f8b88"
+};
+
+  if(firebaseConfig.apiKey.indexOf('PASTE') !== -1){
+    document.getElementById('app').innerHTML =
+      '<div style="padding:60px 20px;text-align:center;font-family:sans-serif;color:#5B5478;line-height:1.6">'+
+      '<div style="font-size:34px;margin-bottom:10px">⚙️</div>'+
+      '<h2 style="margin:0 0 8px">צריך להגדיר את Firebase</h2>'+
+      '<p>יש להחליף בקוד את פרטי <code>firebaseConfig</code> בפרטים האמיתיים מפרויקט ה-Firebase שלך, ואז להעלות מחדש את הקובץ.</p>'+
+      '</div>';
+    throw new Error('Firebase not configured yet');
+  }
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const STORAGE_PREFIX = '';
   async function sGet(key, fallback){
     try{
-      const raw = localStorage.getItem(STORAGE_PREFIX+key);
-      if(raw === null) return fallback;
-      return JSON.parse(raw);
-    }catch(e){ return fallback; }
+      const path = STORAGE_PREFIX + key.replace(/:/g, '/');
+      const snap = await db.ref(path).get();
+      if(!snap.exists()) return fallback;
+      return snap.val();
+    }catch(e){ console.error('storage error', e); return fallback; }
   }
   async function sSet(key, value){
-    try{ localStorage.setItem(STORAGE_PREFIX+key, JSON.stringify(value)); }catch(e){ console.error('storage error', e); }
+    try{
+      const path = STORAGE_PREFIX + key.replace(/:/g, '/');
+      await db.ref(path).set(value);
+    }catch(e){ console.error('storage error', e); }
+  }
+
+  // ---- live sync: keep all devices updated automatically ----
+  let kidsListRef = null;
+  let tasksListenerRef = null;
+  let doneListenerRef = null;
+
+  function attachKidsListListener(){
+    if(kidsListRef) kidsListRef.off();
+    kidsListRef = db.ref('kids-list');
+    kidsListRef.on('value', snap=>{
+      const val = snap.val();
+      if(val){ kids = val; if(!modalOpen) render(); }
+    });
+  }
+
+  function attachKidListeners(kidId){
+    if(tasksListenerRef) tasksListenerRef.off();
+    if(doneListenerRef) doneListenerRef.off();
+
+    tasksListenerRef = db.ref('tasks/'+kidId);
+    tasksListenerRef.on('value', snap=>{
+      const val = snap.val();
+      if(val){ tasksCache[kidId] = val; if(!modalOpen && selectedKidId===kidId) render(); }
+    });
+
+    const dateKey = todayStr();
+    doneListenerRef = db.ref('done/'+kidId+'/'+dateKey);
+    doneListenerRef.on('value', snap=>{
+      const val = snap.val() || [];
+      doneCache['done:'+kidId+':'+dateKey] = val;
+      if(!modalOpen && selectedKidId===kidId) render();
+    });
   }
 
   async function ensureKids(){
@@ -374,7 +442,7 @@
   function attachHandlers(kidId){
     document.getElementById('gearBtn').onclick = ()=>{ modalOpen=true; renderModal(); };
     document.querySelectorAll('#kidRow .kid-chip').forEach(btn=>{
-      btn.onclick = ()=>{ selectedKidId = btn.getAttribute('data-kid'); sSet('selected-kid', selectedKidId); render(); };
+      btn.onclick = ()=>{ selectedKidId = btn.getAttribute('data-kid'); sSet('selected-kid', selectedKidId); attachKidListeners(selectedKidId); render(); };
     });
     document.querySelectorAll('[data-donetoggle]').forEach(btn=>{
       btn.onclick = ()=>{
@@ -532,7 +600,7 @@
         b.onclick = ()=>{ modalCat = b.getAttribute('data-cat'); renderModal(); };
       });
       overlay.querySelectorAll('[data-modalkid]').forEach(b=>{
-        b.onclick = ()=>{ selectedKidId = b.getAttribute('data-modalkid'); renderModal(); };
+        b.onclick = ()=>{ selectedKidId = b.getAttribute('data-modalkid'); attachKidListeners(selectedKidId); renderModal(); };
       });
       const tasks = tasksCache[selectedKidId];
       overlay.querySelectorAll('[data-tasktext]').forEach(inp=>{
@@ -580,6 +648,8 @@
     await ensureKids();
     selectedKidId = await sGet('selected-kid', kids[0].id);
     if(!kids.find(k=>k.id===selectedKidId)) selectedKidId = kids[0].id;
+    attachKidsListListener();
+    attachKidListeners(selectedKidId);
     await render();
   }
   init();
