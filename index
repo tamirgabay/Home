@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>המשימות שלי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#241E42;
+    --ink-soft:#5B5478;
+    --bg-top:#FDF3E7;
+    --bg-bottom:#EAF0FF;
+    --card-bg:#FFFFFF;
+    --shadow: 0 6px 18px rgba(36,30,66,0.10);
+    --radius: 22px;
+    --morning-1:#FFD36E; --morning-2:#FF9B54;
+    --evening-1:#6E5CA8; --evening-2:#2B2350;
+    --general-1:#79EAC9; --general-2:#22C79E;
+    --done-grey:#C9C6D6;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:'Rubik',sans-serif;
+    color:var(--ink);
+    background:linear-gradient(160deg,var(--bg-top) 0%, var(--bg-bottom) 100%);
+    min-height:100vh;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{max-width:520px;margin:0 auto;padding:18px 16px 90px;}
+
+  /* header */
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .greeting{font-size:22px;font-weight:900;}
+  .greeting .name{color:var(--kid-color, #FF6F6B);}
+  .date-line{font-size:13px;color:var(--ink-soft);font-weight:500;margin-top:2px;}
+  .gear-btn{
+    width:42px;height:42px;border-radius:50%;background:#fff;border:none;
+    box-shadow:var(--shadow); font-size:19px; cursor:pointer; display:flex;
+    align-items:center;justify-content:center; flex-shrink:0;
+  }
+  .gear-btn:active{transform:scale(0.92);}
+
+  /* kid switcher */
+  .kid-row{display:flex;gap:10px;overflow-x:auto;padding:6px 2px 14px;scrollbar-width:none;}
+  .kid-row::-webkit-scrollbar{display:none;}
+  .kid-chip{
+    flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:4px;
+    cursor:pointer; padding:4px; border:none; background:none; font-family:inherit;
+  }
+  .kid-avatar{
+    width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:26px; box-shadow:var(--shadow); border:3px solid transparent; transition:transform .15s, border-color .15s;
+  }
+  .kid-chip.active .kid-avatar{border-color:var(--ink); transform:scale(1.08);}
+  .kid-chip span.kid-label{font-size:11px;font-weight:700;color:var(--ink-soft);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .kid-chip.active span.kid-label{color:var(--ink);}
+
+  /* progress */
+  .progress-wrap{background:#fff;border-radius:18px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:18px;}
+  .progress-top{display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;}
+  .progress-bar-bg{height:10px;border-radius:6px;background:#EEECF6;overflow:hidden;}
+  .progress-bar-fill{height:100%;border-radius:6px;background:var(--kid-color,#FF6F6B);transition:width .4s ease;}
+
+  /* sections */
+  .section{margin-bottom:22px;}
+  .section-head{
+    display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:16px 16px 0 0;
+    font-weight:900;font-size:15px;
+  }
+  .section-head.morning{background:linear-gradient(90deg,var(--morning-1),var(--morning-2));color:#3B2200;}
+  .section-head.evening{background:linear-gradient(90deg,var(--evening-1),var(--evening-2));color:#fff;}
+  .section-head.general{background:linear-gradient(90deg,var(--general-1),var(--general-2));color:#04382C;}
+  .section-body{background:rgba(255,255,255,0.55);border-radius:0 0 16px 16px;padding:10px;}
+  .empty-hint{padding:14px;text-align:center;color:var(--ink-soft);font-size:13px;}
+
+  /* task card */
+  .task-card-wrap{position:relative;margin-bottom:10px;border-radius:18px;overflow:hidden;}
+  .task-card-bg{
+    position:absolute;inset:0;background:#22C79E;color:#fff;display:flex;align-items:center;
+    justify-content:flex-start;padding-right:20px;font-weight:800;font-size:14px;
+  }
+  .task-card{
+    position:relative; background:var(--card-bg); border-radius:18px; padding:14px 14px;
+    display:flex;align-items:center;gap:12px; box-shadow:var(--shadow); touch-action:pan-y;
+    user-select:none; will-change:transform;
+  }
+  .task-card.dragging{box-shadow:0 10px 24px rgba(36,30,66,0.18);}
+  .task-icon{
+    width:40px;height:40px;border-radius:50%;background:#F4F2FC;display:flex;align-items:center;
+    justify-content:center;font-size:20px;flex-shrink:0;
+  }
+  .task-text{font-size:15px;font-weight:600;flex:1;}
+  .swipe-arrow{font-size:14px;color:#D8D5E8;flex-shrink:0;}
+
+  /* done items */
+  .done-list{margin-top:6px;}
+  .done-toggle{
+    width:100%;text-align:right;background:none;border:none;color:var(--ink-soft);
+    font-family:inherit;font-size:12.5px;font-weight:700;padding:6px 4px;cursor:pointer;
+  }
+  .done-item{
+    display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:14px;
+    background:rgba(255,255,255,0.5); margin-bottom:6px; cursor:pointer;
+  }
+  .done-item .task-icon{background:#E9E7F2;filter:grayscale(1);opacity:.7;width:32px;height:32px;font-size:16px;}
+  .done-item .task-text{color:var(--done-grey);text-decoration:line-through;font-size:14px;font-weight:500;}
+  .done-check{font-size:15px;}
+
+  /* burst */
+  .burst{position:fixed;pointer-events:none;font-size:26px;z-index:50;animation:burstUp .7s ease-out forwards;}
+  @keyframes burstUp{
+    0%{transform:translateY(0) scale(0.6);opacity:1;}
+    60%{transform:translateY(-40px) scale(1.2);opacity:1;}
+    100%{transform:translateY(-70px) scale(0.8);opacity:0;}
+  }
+
+  /* modal */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(36,30,66,0.45);display:flex;align-items:flex-end;
+    justify-content:center;z-index:100; opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  .modal-overlay.open{opacity:1;pointer-events:auto;}
+  .modal-sheet{
+    background:#fff;width:100%;max-width:520px;border-radius:24px 24px 0 0;padding:18px 18px 24px;
+    max-height:85vh;overflow-y:auto; transform:translateY(30px); transition:transform .25s;
+  }
+  .modal-overlay.open .modal-sheet{transform:translateY(0);}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .modal-head h2{font-size:18px;margin:0;}
+  .close-btn{background:#F4F2FC;border:none;width:32px;height:32px;border-radius:50%;font-size:15px;cursor:pointer;}
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tab-btn{flex:1;padding:9px;border-radius:12px;border:none;background:#F4F2FC;font-family:inherit;
+    font-weight:700;font-size:13px;color:var(--ink-soft);cursor:pointer;}
+  .tab-btn.active{background:var(--ink);color:#fff;}
+
+  .kid-edit-row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid #F0EEF7;}
+  .kid-edit-row input[type=text]{
+    flex:1;border:none;background:#F8F7FC;border-radius:10px;padding:9px 10px;font-family:inherit;
+    font-size:14px;color:var(--ink);
+  }
+  .emoji-pick{display:flex;gap:5px;flex-wrap:wrap;max-width:110px;}
+  .emoji-pick span{cursor:pointer;font-size:17px;padding:3px;border-radius:8px;}
+  .emoji-pick span.sel{background:#F4F2FC;}
+  .color-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0;}
+  .color-dot.sel{border-color:var(--ink);}
+
+  .cat-tabs{display:flex;gap:6px;margin:10px 0 12px;}
+  .cat-tab{flex:1;text-align:center;padding:8px;border-radius:10px;border:none;font-family:inherit;
+    font-weight:700;font-size:12.5px;background:#F4F2FC;color:var(--ink-soft);cursor:pointer;}
+  .cat-tab.active{color:#fff;}
+  .cat-tab.active[data-cat=morning]{background:linear-gradient(90deg,var(--morning-1),var(--morning-2));color:#3B2200;}
+  .cat-tab.active[data-cat=evening]{background:linear-gradient(90deg,var(--evening-1),var(--evening-2));}
+  .cat-tab.active[data-cat=general]{background:linear-gradient(90deg,var(--general-1),var(--general-2));color:#04382C;}
+
+  .edit-task-row{display:flex;align-items:center;gap:8px;padding:7px 2px;}
+  .edit-task-row input[type=text]{
+    flex:1;border:none;background:#F8F7FC;border-radius:10px;padding:9px 10px;font-family:inherit;font-size:14px;
+  }
+  .icon-btn{background:none;border:none;font-size:17px;cursor:pointer;color:var(--ink-soft);width:28px;flex-shrink:0;}
+  .add-task-btn{
+    width:100%;margin-top:8px;padding:11px;border-radius:12px;border:2px dashed #D8D5E8;background:none;
+    font-family:inherit;font-weight:700;font-size:13.5px;color:var(--ink-soft);cursor:pointer;
+  }
+  .copy-all-btn{
+    width:100%;margin-top:14px;padding:11px;border-radius:12px;border:none;background:var(--ink);
+    color:#fff;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;
+  }
+  .loading{text-align:center;padding:60px 0;color:var(--ink-soft);font-weight:700;}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">טוען...</div></div>
+
+<script>
+(function(){
+  const KID_COLORS = ['#FF6F6B','#FFC93C','#22C79E','#3FA9F5','#9B6BFF','#FF8FB1'];
+  const KID_EMOJIS = ['🦊','🐻','🐰','🦁','🐼','🐨'];
+  const AVATAR_CHOICES = ['🦊','🐻','🐰','🦁','🐼','🐨','🐸','🐶','🐱','🦄','🐢','🦋','🐧','🦖','⭐','🌈'];
+  const TASK_ICON_CHOICES = ['✅','🦷','👕','🛏️','🍳','🎒','🚿','📚','🧸','🧦','🐾','🧹','⏰','💧','📖','🥛'];
+  const CATS = [
+    {id:'morning', label:'בוקר', icon:'☀️'},
+    {id:'evening', label:'ערב', icon:'🌙'},
+    {id:'general', label:'כל היום', icon:'⭐'}
+  ];
+  const DEFAULT_TASKS = [
+    {text:'להתלבש', emoji:'👕', category:'morning'},
+    {text:'לצחצח שיניים', emoji:'🦷', category:'morning'},
+    {text:'לסדר את המיטה', emoji:'🛏️', category:'morning'},
+    {text:'לאכול ארוחת בוקר', emoji:'🍳', category:'morning'},
+    {text:'לקחת תיק וציוד', emoji:'🎒', category:'morning'},
+    {text:'להתקלח', emoji:'🚿', category:'evening'},
+    {text:'לצחצח שיניים', emoji:'🦷', category:'evening'},
+    {text:'להכין תיק למחר', emoji:'🎒', category:'evening'},
+    {text:'לקרוא ספר', emoji:'📖', category:'evening'},
+    {text:'לסדר צעצועים', emoji:'🧸', category:'general'},
+    {text:'לשתות מספיק מים', emoji:'💧', category:'general'}
+  ];
+
+  let kids = [];
+  let selectedKidId = null;
+  let tasksCache = {};
+  let doneCache = {};
+  let openDoneSections = {};
+  let modalOpen = false;
+  let modalTab = 'kids';
+  let modalCat = 'morning';
+
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function uid(){ return 'id'+Math.random().toString(36).slice(2,10); }
+
+  async function sGet(key, fallback){
+    try{
+      const r = await window.storage.get(key, false);
+      if(!r) return fallback;
+      return JSON.parse(r.value);
+    }catch(e){ return fallback; }
+  }
+  async function sSet(key, value){
+    try{ await window.storage.set(key, JSON.stringify(value), false); }catch(e){ console.error('storage error', e); }
+  }
+
+  async function ensureKids(){
+    let list = await sGet('kids-list', null);
+    if(!list){
+      list = [];
+      for(let i=0;i<6;i++){
+        list.push({id:'kid'+(i+1), name:'ילד/ה '+(i+1), emoji:KID_EMOJIS[i], color:KID_COLORS[i]});
+      }
+      await sSet('kids-list', list);
+    }
+    kids = list;
+  }
+
+  async function ensureTasks(kidId){
+    if(tasksCache[kidId]) return tasksCache[kidId];
+    let t = await sGet('tasks:'+kidId, null);
+    if(!t){
+      t = DEFAULT_TASKS.map(dt => ({id:uid(), text:dt.text, emoji:dt.emoji, category:dt.category}));
+      await sSet('tasks:'+kidId, t);
+    }
+    tasksCache[kidId] = t;
+    return t;
+  }
+
+  async function getDone(kidId){
+    const key = 'done:'+kidId+':'+todayStr();
+    if(doneCache[key]) return doneCache[key];
+    let d = await sGet(key, []);
+    doneCache[key] = d;
+    return d;
+  }
+  async function saveDone(kidId, arr){
+    const key = 'done:'+kidId+':'+todayStr();
+    doneCache[key] = arr;
+    await sSet(key, arr);
+  }
+
+  function greetingWord(){
+    const h = new Date().getHours();
+    if(h < 12) return 'בוקר טוב';
+    if(h < 18) return 'צהריים טובים';
+    return 'ערב טוב';
+  }
+  function dateLine(){
+    const days = ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','יום שבת'];
+    const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+    const d = new Date();
+    return days[d.getDay()]+', '+d.getDate()+' ב'+months[d.getMonth()];
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function burstAt(x,y){
+    const el = document.createElement('div');
+    el.className='burst';
+    el.style.left = (x-13)+'px';
+    el.style.top = (y-13)+'px';
+    const opts = ['🎉','⭐','✨','🌟'];
+    el.textContent = opts[Math.floor(Math.random()*opts.length)];
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 700);
+  }
+
+  async function render(){
+    if(!selectedKidId) selectedKidId = kids[0].id;
+    const kid = kids.find(k=>k.id===selectedKidId) || kids[0];
+    const tasks = await ensureTasks(kid.id);
+    const done = await getDone(kid.id);
+    const activeTasks = tasks;
+    const totalCount = activeTasks.length;
+    const doneCount = done.filter(id => activeTasks.some(t=>t.id===id)).length;
+    const pct = totalCount ? Math.round((doneCount/totalCount)*100) : 0;
+
+    let html = '';
+    html += '<header>';
+    html += '<div><div class="greeting">'+greetingWord()+', <span class="name" style="--kid-color:'+kid.color+';color:'+kid.color+'">'+esc(kid.name)+'</span> '+kid.emoji+'</div>';
+    html += '<div class="date-line">'+dateLine()+'</div></div>';
+    html += '<button class="gear-btn" id="gearBtn">⚙️</button>';
+    html += '</header>';
+
+    html += '<div class="kid-row" id="kidRow">';
+    kids.forEach(k=>{
+      html += '<button class="kid-chip'+(k.id===selectedKidId?' active':'')+'" data-kid="'+k.id+'">'+
+        '<div class="kid-avatar" style="background:'+k.color+'22;color:'+k.color+'">'+k.emoji+'</div>'+
+        '<span class="kid-label">'+esc(k.name)+'</span></button>';
+    });
+    html += '</div>';
+
+    html += '<div class="progress-wrap" style="--kid-color:'+kid.color+'">';
+    html += '<div class="progress-top"><span>היום כבר עשית</span><span>'+doneCount+' מתוך '+totalCount+'</span></div>';
+    html += '<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:'+pct+'%"></div></div>';
+    html += '</div>';
+
+    CATS.forEach(cat=>{
+      const catTasks = activeTasks.filter(t=>t.category===cat.id);
+      if(catTasks.length===0) return;
+      const activeOnes = catTasks.filter(t=>!done.includes(t.id));
+      const doneOnes = catTasks.filter(t=>done.includes(t.id));
+      html += '<div class="section">';
+      html += '<div class="section-head '+cat.id+'"><span>'+cat.icon+'</span><span>'+cat.label+'</span></div>';
+      html += '<div class="section-body">';
+      if(activeOnes.length===0 && doneOnes.length===catTasks.length){
+        html += '<div class="empty-hint">כל הכבוד! סיימת הכל כאן 🎉</div>';
+      } else {
+        activeOnes.forEach(t=>{
+          html += '<div class="task-card-wrap" data-task="'+t.id+'" data-cat="'+cat.id+'">'+
+            '<div class="task-card-bg">✓ בוצע</div>'+
+            '<div class="task-card">'+
+              '<div class="task-icon">'+t.emoji+'</div>'+
+              '<div class="task-text">'+esc(t.text)+'</div>'+
+              '<div class="swipe-arrow">⟵ החלק</div>'+
+            '</div></div>';
+        });
+      }
+      if(doneOnes.length>0){
+        const isOpen = !!openDoneSections[cat.id+kid.id];
+        html += '<button class="done-toggle" data-donetoggle="'+cat.id+'">'+(isOpen?'הסתר ':'הצג ')+'הושלם ('+doneOnes.length+') '+(isOpen?'▲':'▼')+'</button>';
+        if(isOpen){
+          html += '<div class="done-list">';
+          doneOnes.forEach(t=>{
+            html += '<div class="done-item" data-undo="'+t.id+'"><div class="task-icon">'+t.emoji+'</div><div class="task-text">'+esc(t.text)+'</div><div class="done-check">↩️</div></div>';
+          });
+          html += '</div>';
+        }
+      }
+      html += '</div></div>';
+    });
+
+    document.getElementById('app').innerHTML = html;
+    attachHandlers(kid.id);
+  }
+
+  function attachHandlers(kidId){
+    document.getElementById('gearBtn').onclick = ()=>{ modalOpen=true; renderModal(); };
+    document.querySelectorAll('#kidRow .kid-chip').forEach(btn=>{
+      btn.onclick = ()=>{ selectedKidId = btn.getAttribute('data-kid'); sSet('selected-kid', selectedKidId); render(); };
+    });
+    document.querySelectorAll('[data-donetoggle]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const cat = btn.getAttribute('data-donetoggle');
+        openDoneSections[cat+kidId] = !openDoneSections[cat+kidId];
+        render();
+      };
+    });
+    document.querySelectorAll('[data-undo]').forEach(el=>{
+      el.onclick = async ()=>{
+        const id = el.getAttribute('data-undo');
+        const done = await getDone(kidId);
+        const idx = done.indexOf(id);
+        if(idx>-1){ done.splice(idx,1); await saveDone(kidId, done.slice()); render(); }
+      };
+    });
+    document.querySelectorAll('.task-card-wrap').forEach(wrap=>{
+      makeSwipeable(wrap, kidId);
+    });
+  }
+
+  function makeSwipeable(wrap, kidId){
+    const card = wrap.querySelector('.task-card');
+    const taskId = wrap.getAttribute('data-task');
+    let startX=0, dx=0, dragging=false, pointerId=null;
+    const threshold = 90;
+
+    function down(e){
+      dragging = true; pointerId = e.pointerId;
+      startX = e.clientX;
+      card.classList.add('dragging');
+      card.style.transition='none';
+      try{ card.setPointerCapture(pointerId); }catch(err){}
+    }
+    function move(e){
+      if(!dragging) return;
+      dx = e.clientX - startX;
+      let visual = dx < 0 ? dx*0.15 : dx;
+      card.style.transform = 'translateX('+visual+'px) rotate('+(visual/50)+'deg)';
+    }
+    async function up(e){
+      if(!dragging) return;
+      dragging = false;
+      card.classList.remove('dragging');
+      card.style.transition = 'transform .25s ease';
+      if(dx > threshold){
+        card.style.transform = 'translateX(140%) rotate(8deg)';
+        card.style.opacity = '0';
+        const rect = wrap.getBoundingClientRect();
+        burstAt(rect.left + rect.width*0.15, rect.top + rect.height/2);
+        const done = await getDone(kidId);
+        if(!done.includes(taskId)) done.push(taskId);
+        await saveDone(kidId, done.slice());
+        setTimeout(()=>{ render(); }, 260);
+      } else {
+        card.style.transform = '';
+      }
+      dx = 0;
+    }
+    card.addEventListener('pointerdown', down);
+    card.addEventListener('pointermove', move);
+    card.addEventListener('pointerup', up);
+    card.addEventListener('pointercancel', up);
+  }
+
+  // ---------- MODAL (edit kids & tasks) ----------
+  function closeModal(){
+    modalOpen = false;
+    const overlay = document.getElementById('modalOverlay');
+    if(overlay){ overlay.classList.remove('open'); setTimeout(()=>overlay.remove(), 200); }
+  }
+
+  async function renderModal(){
+    let overlay = document.getElementById('modalOverlay');
+    if(!overlay){
+      overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.id = 'modalOverlay';
+      document.body.appendChild(overlay);
+    }
+    let inner = '<div class="modal-sheet">';
+    inner += '<div class="modal-head"><h2>הגדרות</h2><button class="close-btn" id="modalClose">✕</button></div>';
+    inner += '<div class="tabs">';
+    inner += '<button class="tab-btn'+(modalTab==='kids'?' active':'')+'" data-tab="kids">בני משפחה</button>';
+    inner += '<button class="tab-btn'+(modalTab==='tasks'?' active':'')+'" data-tab="tasks">משימות</button>';
+    inner += '</div>';
+
+    if(modalTab==='kids'){
+      kids.forEach(k=>{
+        inner += '<div class="kid-edit-row" data-kidrow="'+k.id+'">';
+        inner += '<input type="text" data-namefor="'+k.id+'" value="'+esc(k.name)+'" maxlength="14">';
+        inner += '<div class="emoji-pick" data-emojifor="'+k.id+'">';
+        AVATAR_CHOICES.slice(0,8).forEach(em=>{
+          inner += '<span class="'+(k.emoji===em?'sel':'')+'" data-emoji="'+em+'">'+em+'</span>';
+        });
+        inner += '</div>';
+        inner += '<div style="display:flex;gap:4px;flex-wrap:wrap;max-width:56px" data-colorfor="'+k.id+'">';
+        KID_COLORS.forEach(c=>{
+          inner += '<div class="color-dot'+(k.color===c?' sel':'')+'" style="background:'+c+'" data-color="'+c+'"></div>';
+        });
+        inner += '</div></div>';
+      });
+    } else {
+      inner += '<div class="cat-tabs">';
+      CATS.forEach(c=>{
+        inner += '<button class="cat-tab'+(modalCat===c.id?' active':'')+'" data-cat="'+c.id+'">'+c.icon+' '+c.label+'</button>';
+      });
+      inner += '</div>';
+      inner += '<div class="kid-row" style="padding-bottom:8px" id="modalKidRow">';
+      kids.forEach(k=>{
+        inner += '<button class="kid-chip'+(k.id===selectedKidId?' active':'')+'" data-modalkid="'+k.id+'">'+
+          '<div class="kid-avatar" style="background:'+k.color+'22;color:'+k.color+'">'+k.emoji+'</div>'+
+          '<span class="kid-label">'+esc(k.name)+'</span></button>';
+      });
+      inner += '</div>';
+      const tasks = await ensureTasks(selectedKidId);
+      const catTasks = tasks.filter(t=>t.category===modalCat);
+      inner += '<div id="modalTaskList">';
+      catTasks.forEach(t=>{
+        inner += '<div class="edit-task-row" data-taskrow="'+t.id+'">';
+        inner += '<span>'+t.emoji+'</span>';
+        inner += '<input type="text" data-tasktext="'+t.id+'" value="'+esc(t.text)+'">';
+        inner += '<button class="icon-btn" data-deltask="'+t.id+'">🗑️</button>';
+        inner += '</div>';
+      });
+      inner += '</div>';
+      inner += '<button class="add-task-btn" id="addTaskBtn">+ הוספת משימה</button>';
+      inner += '<button class="copy-all-btn" id="copyAllBtn">העתק את המשימות האלה לכל בני המשפחה</button>';
+    }
+    inner += '</div>';
+    overlay.innerHTML = inner;
+    requestAnimationFrame(()=>overlay.classList.add('open'));
+
+    document.getElementById('modalClose').onclick = ()=>{ closeModal(); render(); };
+    overlay.onclick = (e)=>{ if(e.target===overlay){ closeModal(); render(); } };
+    overlay.querySelectorAll('.tab-btn').forEach(b=>{
+      b.onclick = ()=>{ modalTab = b.getAttribute('data-tab'); renderModal(); };
+    });
+
+    if(modalTab==='kids'){
+      kids.forEach(k=>{
+        const nameInput = overlay.querySelector('[data-namefor="'+k.id+'"]');
+        nameInput.oninput = async ()=>{ k.name = nameInput.value; await sSet('kids-list', kids); };
+        overlay.querySelectorAll('[data-emojifor="'+k.id+'"] span').forEach(sp=>{
+          sp.onclick = async ()=>{ k.emoji = sp.getAttribute('data-emoji'); await sSet('kids-list', kids); renderModal(); };
+        });
+        overlay.querySelectorAll('[data-colorfor="'+k.id+'"] .color-dot').forEach(dot=>{
+          dot.onclick = async ()=>{ k.color = dot.getAttribute('data-color'); await sSet('kids-list', kids); renderModal(); };
+        });
+      });
+    } else {
+      overlay.querySelectorAll('.cat-tab').forEach(b=>{
+        b.onclick = ()=>{ modalCat = b.getAttribute('data-cat'); renderModal(); };
+      });
+      overlay.querySelectorAll('[data-modalkid]').forEach(b=>{
+        b.onclick = ()=>{ selectedKidId = b.getAttribute('data-modalkid'); renderModal(); };
+      });
+      const tasks = tasksCache[selectedKidId];
+      overlay.querySelectorAll('[data-tasktext]').forEach(inp=>{
+        inp.oninput = async ()=>{
+          const id = inp.getAttribute('data-tasktext');
+          const t = tasks.find(x=>x.id===id);
+          if(t){ t.text = inp.value; await sSet('tasks:'+selectedKidId, tasks); }
+        };
+      });
+      overlay.querySelectorAll('[data-deltask]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.getAttribute('data-deltask');
+          tasksCache[selectedKidId] = tasks.filter(x=>x.id!==id);
+          await sSet('tasks:'+selectedKidId, tasksCache[selectedKidId]);
+          renderModal();
+        };
+      });
+      document.getElementById('addTaskBtn').onclick = async ()=>{
+        const newTask = {id:uid(), text:'משימה חדשה', emoji:TASK_ICON_CHOICES[Math.floor(Math.random()*TASK_ICON_CHOICES.length)], category:modalCat};
+        tasksCache[selectedKidId].push(newTask);
+        await sSet('tasks:'+selectedKidId, tasksCache[selectedKidId]);
+        renderModal();
+      };
+      document.getElementById('copyAllBtn').onclick = async ()=>{
+        const srcTasks = tasksCache[selectedKidId];
+        for(const k of kids){
+          if(k.id === selectedKidId) continue;
+          const copied = srcTasks.map(t=>({id:uid(), text:t.text, emoji:t.emoji, category:t.category}));
+          tasksCache[k.id] = copied;
+          await sSet('tasks:'+k.id, copied);
+        }
+        renderModal();
+      };
+    }
+  }
+
+  async function init(){
+    await ensureKids();
+    selectedKidId = await sGet('selected-kid', kids[0].id);
+    if(!kids.find(k=>k.id===selectedKidId)) selectedKidId = kids[0].id;
+    await render();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
